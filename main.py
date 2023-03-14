@@ -17,28 +17,6 @@ class Ui_MainWindow(object):
         font.setPointSize(16)
         MainWindow.setFont(font)
         MainWindow.setStyleSheet("background-color:rgb(51, 53, 52);")
-
-        self.ports = ()
-        self.logs_count = 0
-        self.current_timer = 0
-        self.timer_is_running = False
-        self.port_is_connect = False
-        self.current_encoder_position = 0
-        self.port_wrong_read_count = 0
-        self.input_data = ''
-        self.input_data_dict = {"1": "0", "2": "0", "3": "0"}
-        self.output_data_dict = {"1": "Duit the best!", "2": "0", "3": "0", "4": "0", "5": "0", "6": "0"}
-        self.old_output_data_dict = {"1": "0", "2": "0", "3": "0", "4": "0", "5": "0", "6": "0"}
-        self.moisture_value = 100
-        self.rain_detector_value = 100
-        self.relay_is_active = False
-        self.ready_to_write = False
-        self.pwm_value = 0
-        self.current_path = Path(__file__).parent
-        self.current_log = ''
-        self.weather_status = "Sunny"
-        self.lcd1602_cycle_count = 0
-
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout_19 = QtWidgets.QGridLayout(self.centralwidget)
@@ -242,6 +220,7 @@ class Ui_MainWindow(object):
         self.textEdit_i2c1602_send_text.setObjectName("textEdit_i2c1602_send_text")
         self.gridLayout_8.addWidget(self.textEdit_i2c1602_send_text, 0, 0, 1, 2)
         self.pushButton_i2c1602_send_text = QtWidgets.QPushButton(self.widget_2)
+        self.pushButton_i2c1602_send_text.clicked.connect(self.send_text_to_lcd1602)
         self.pushButton_i2c1602_send_text.setObjectName("pushButton_i2c1602_send_text")
         self.gridLayout_8.addWidget(self.pushButton_i2c1602_send_text, 1, 0, 1, 2)
         self.gridLayout_7.addWidget(self.widget_2, 2, 0, 1, 1)
@@ -384,10 +363,10 @@ class Ui_MainWindow(object):
         self.gridLayout_23.addWidget(self.widget_11, 0, 0, 1, 1)
         self.radioButton_symb_disp_show_timer = QtWidgets.QRadioButton(self.widget_28)
         self.radioButton_symb_disp_show_timer.clicked.connect(self.display_4x7digit)               # oновлюємо значення
+        self.radioButton_symb_disp_show_timer.setChecked(True)                             # увімкнено за замовчуванням
         self.radioButton_symb_disp_show_timer.setObjectName("radioButton_symb_disp_show_timer")
         self.gridLayout_23.addWidget(self.radioButton_symb_disp_show_timer, 1, 0, 1, 1)
         self.radioButton_symb_disp_show_clock = QtWidgets.QRadioButton(self.widget_28)
-        self.radioButton_symb_disp_show_clock.setChecked(True)                             # увімкнено за замовчуванням
         self.radioButton_symb_disp_show_clock.clicked.connect(self.display_4x7digit)               # oновлюємо значення
         self.radioButton_symb_disp_show_clock.setObjectName("radioButton_symb_disp_show_clock")
         self.gridLayout_23.addWidget(self.radioButton_symb_disp_show_clock, 2, 0, 1, 1)
@@ -546,6 +525,7 @@ class Ui_MainWindow(object):
         self.label_rain_sens_status_icon.setObjectName("label_rain_sens_status_icon")
         self.gridLayout_12.addWidget(self.label_rain_sens_status_icon, 1, 2, 1, 1)
         self.checkBox_rain_sens_connect_to_relay = QtWidgets.QCheckBox(self.widget_6)
+        self.checkBox_rain_sens_connect_to_relay.clicked.connect(self.enable_rain_buzzer)
         self.checkBox_rain_sens_connect_to_relay.setObjectName("checkBox_rain_sens_connect_to_relay")
         self.gridLayout_12.addWidget(self.checkBox_rain_sens_connect_to_relay, 1, 0, 1, 1)
         self.gridLayout_10.addWidget(self.widget_6, 1, 0, 1, 1)
@@ -599,9 +579,11 @@ class Ui_MainWindow(object):
         self.lcdNumber_relay_timer.setObjectName("lcdNumber_relay_timer")
         self.gridLayout_16.addWidget(self.lcdNumber_relay_timer, 5, 0, 1, 3)
         self.radioButton_relay_on = QtWidgets.QRadioButton(self.widget_17)
+        self.radioButton_relay_on.clicked.connect(self.relay_on)
         self.radioButton_relay_on.setObjectName("radioButton_relay_on")
         self.gridLayout_16.addWidget(self.radioButton_relay_on, 0, 0, 1, 1)
         self.radioButton_relay_off = QtWidgets.QRadioButton(self.widget_17)
+        self.radioButton_relay_off.clicked.connect(self.relay_off)
         self.radioButton_relay_off.setChecked(True)                                          # вибрано за замовчуванням
         self.radioButton_relay_off.setObjectName("radioButton_relay_off")
         self.gridLayout_16.addWidget(self.radioButton_relay_off, 2, 0, 1, 1)
@@ -724,11 +706,12 @@ class Ui_MainWindow(object):
         self.gridLayout_25.addWidget(self.progressBar_moisture_level, 0, 0, 1, 1)
         self.gridLayout_21.addWidget(self.widget_27, 0, 0, 1, 3)
         self.horizontalSlider_moisture_relay_en_level = QtWidgets.QSlider(self.widget_21)
-        self.horizontalSlider_moisture_relay_en_level.valueChanged.connect(self.relay_by_moisture_slider)
+        self.horizontalSlider_moisture_relay_en_level.valueChanged.connect(self.enable_relay_moisture_sens_level)
         self.horizontalSlider_moisture_relay_en_level.setOrientation(QtCore.Qt.Horizontal)
         self.horizontalSlider_moisture_relay_en_level.setObjectName("horizontalSlider_moisture_relay_en_level")
         self.gridLayout_21.addWidget(self.horizontalSlider_moisture_relay_en_level, 3, 0, 1, 3)
         self.checkBox_connect_moisture_to_relay = QtWidgets.QCheckBox(self.widget_21)
+        self.checkBox_connect_moisture_to_relay.clicked.connect(self.enable_pump)
         self.checkBox_connect_moisture_to_relay.setText("")
         self.checkBox_connect_moisture_to_relay.setObjectName("checkBox_connect_moisture_to_relay")
         self.gridLayout_21.addWidget(self.checkBox_connect_moisture_to_relay, 4, 2, 1, 1)
@@ -749,6 +732,28 @@ class Ui_MainWindow(object):
         self.gridLayout_3.addWidget(self.widget_moisture_sensor, 1, 6, 1, 1)
         self.gridLayout_6.addWidget(self.widget_devices_subblock2, 1, 1, 1, 1)
         self.gridLayout_19.addWidget(self.widget_devices_block, 0, 1, 1, 1)
+
+        self.ports = ()
+        self.logs_count = 0
+        self.current_timer = 0
+        self.timer_is_running = False
+        self.port_is_connect = False
+        self.current_encoder_position = 0
+        self.port_wrong_read_count = 0
+        self.input_data = ''
+        self.input_data_dict = {"1": "0", "2": "0", "3": "0"}
+        self.output_data_dict = {"1": "0", "2": "0", "3": "0", "4": "0", "5": "1", "6": "0"}
+        self.old_output_data_dict = {"1": "0", "2": "0", "3": "0", "4": "0", "5": "1", "6": "0"}
+        self.moisture_value = 100
+        self.rain_detector_value = 100
+        self.relay_is_active = False
+        self.ready_to_write = False
+        self.pwm_value = 0
+        self.current_path = Path(__file__).parent
+        self.current_log = ''
+        self.weather_status = "Sunny"
+        self.lcd1602_cycle_count = 0
+
         self.serial = QSerialPort()                                 # створюємо порт об'єкт serial
         self.serial.setBaudRate(9600)                               # задаємо швидкість
         MainWindow.setCentralWidget(self.centralwidget)
@@ -758,7 +763,6 @@ class Ui_MainWindow(object):
         self.update_lcd1602_timer = QTimer()
         self.update_lcd1602_timer.timeout.connect(self.lcd1602_cycle)
         self.update_lcd1602_timer.start(3000)
-
         self.timer_thread = MyTimerThread(mainwindow=self)
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -807,10 +811,10 @@ class Ui_MainWindow(object):
 
     def open_port(self):
         if self.port_is_connect:                                                       # перевіряємо чи вже не відкрито
-            return                                                                             # зачиняємо
+            return                                                                                          # зачиняємо
         self.serial.setPortName(self.comboBox_COM_ports.currentText())           # вибираєм поточний запис у комбобоксі
-        self.serial.open(QIODevice.ReadWrite)                                                               # час на коректне відкриття порта
-        self.add_to_log(f"{self.comboBox_COM_ports.currentText()} connected")                              # пишем у лог
+        self.serial.open(QIODevice.ReadWrite)                                         # час на коректне відкриття порта
+        self.add_to_log(f"{self.comboBox_COM_ports.currentText()} connected")                             # пишем у лог
         self.label_com_port_number.setText(self.comboBox_COM_ports.currentText())
         self.port_is_connect = True
         self.serial.readyRead.connect(self.read_port)                   # сигнал приєднання при наявності вхідних даних
@@ -836,10 +840,19 @@ class Ui_MainWindow(object):
             if input_data_dict['2'] != self.input_data_dict['2']:
                 self.input_data_dict['2'] = input_data_dict['2']
                 self.moisture_sensor()
+                if self.radioButton_relay_side_in.isChecked() and self.checkBox_connect_moisture_to_relay.isChecked():
+                    if self.moisture_value > self.horizontalSlider_moisture_relay_en_level.value():
+                        self.relay_off()
+                    else:
+                        self.relay_on()
             if input_data_dict['3'] != self.input_data_dict['3']:
                 self.input_data_dict['3'] = input_data_dict['3']
                 self.rain_detector()
-
+                if self.radioButton_relay_side_in.isChecked() and self.checkBox_rain_sens_connect_to_relay.isChecked():
+                    if self.weather_status == "rainy":
+                        self.relay_off()
+                    else:
+                        self.relay_on()
         if self.ready_to_write:
             self.send_to_port()
             self.ready_to_write = False
@@ -868,6 +881,9 @@ class Ui_MainWindow(object):
         elif self.input_data_dict["1"] == "99":
             if self.radioButton_connect_encoder_to_timer.isChecked():
                 self.start_timer()
+        elif self.input_data_dict["1"] == "00":
+            if self.radioButton_connect_encoder_to_timer.isChecked():
+                self.stop_timer()
         self.input_data_dict["1"] = "0"
 
     def update_timer_value(self, value):                                               # функція зміни значення таймера
@@ -884,7 +900,6 @@ class Ui_MainWindow(object):
         for key, value in self.output_data_dict.items():
             if self.output_data_dict[key] != self.old_output_data_dict[key]:
                 send_string = send_string + str(key) + ':' + str(value) + ','
-        print(send_string)
         self.serial.write(send_string.encode())
         self.old_output_data_dict = self.output_data_dict.copy()
 
@@ -904,12 +919,6 @@ class Ui_MainWindow(object):
             self.first_port = self.ports[0]
             for port in self.ports:
                 self.comboBox_COM_ports.addItem(port)                                # додаємо імена портів у комбобокс
-
-    def add_to_log(self, item):                                                                  # функція запису у лог
-        if self.logs_count > 0:                                                    # вирізаємо логи при старті програми
-            self.current_log = str(datetime.now())[11: 19] + ' - ' + item
-            self.listWidget.insertItem(0, self.current_log)
-        self.logs_count += 1
 
     def display_4x7digit(self):
         if self.radioButton_symb_disp_show_clock.isChecked():
@@ -935,21 +944,24 @@ class Ui_MainWindow(object):
     def start_timer(self):
         if self.timer_is_running:                                                          # робимо кнопку бістабільною
             self.stop_timer()                                                # повторний виклик "старт" працює як пауза
-            self.add_to_log(f' {self.current_timer}s')
+            self.add_to_log(f'timer pause {self.current_timer}s')
         else:
             self.timer_is_running = True                                       # якщо таймер вимкнуто просто запускаємо
             self.timer_thread.start()
-            self.add_to_log(f'Timer "Start"  {self.current_timer}s')
+            self.add_to_log(f'timer start  {self.current_timer}s')
+        if self.radioButton_relay_timer.isChecked():
+            self.relay_on()
 
     def stop_timer(self):
         if not self.timer_is_running:                                                            # якщо таймер вимкнуто
             self.current_timer = 0                                                 # виклик спрацює на скидання таймера
             self.lcdNumber_relay_timer.display(self.current_timer)
-            self.add_to_log('Timer cleared')
+            self.add_to_log('timer cleared')
             self.horizontalSlider_relay_timer_value.setValue(0)
         else:
             self.timer_is_running = False                                                      # зупиняємо тред таймера
-            self.add_to_log('Timer "Stop"')
+            self.add_to_log('timer stop')
+        self.relay_off()
 
     def dial_move(self):                                                             # робота дайлера в режимі енкодера
         value = self.dial_encoder.value()
@@ -968,15 +980,15 @@ class Ui_MainWindow(object):
                 self.current_encoder_position = value
             self.horizontalSlider_pwm_duty_cycle.setValue(self.pwm_value)
 
-    def relay_by_moisture_slider(self, value):
+    def moisture_sensor(self):
+        self.moisture_value = int(int(self.input_data_dict['2']) / 1024 * 100)
+        self.progressBar_moisture_level.setValue(self.moisture_value)
+
+    def enable_relay_moisture_sens_level(self, value):
         self.label_moisture_relay_en_level.setText(f'Полив при {value}%')
         if value < self.moisture_value and self.checkBox_connect_moisture_to_relay.isChecked():
             if self.radioButton_relay_side_in.isChecked():
                 self.relay_is_active = True
-
-    def moisture_sensor(self):
-        self.moisture_value = int(int(self.input_data_dict['2']) / 1024 * 100)
-        self.progressBar_moisture_level.setValue(self.moisture_value)
 
     def rain_detector(self):
         self.rain_detector_value = 100 - int(int(self.input_data_dict['3']) / 1024 * 100)
@@ -1002,35 +1014,31 @@ class Ui_MainWindow(object):
         self.ready_to_write = True
 
     def oscilloscope(self):
-        if self.pwm_value < 20:
-            self.widget_pwm_oscilloscope.clear()
-            self.widget_pwm_oscilloscope.plot([1, 2, 5, 5, 5, 5, 6, 7, 8, 10, 10, 10, 11, 12, 14, 15, 15, 15, 16],
-                                              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0])
-        if 20 < self.pwm_value < 80:
-            self.widget_pwm_oscilloscope.clear()
-            self.widget_pwm_oscilloscope.plot([1, 2, 4, 4, 5, 5, 5, 7, 9, 9, 10, 10, 11, 12, 14, 14, 15, 15, 16],
-                                              [0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0])
-        if 80 < self.pwm_value < 140:
-            self.widget_pwm_oscilloscope.clear()
-            self.widget_pwm_oscilloscope.plot([1, 3, 3, 4, 5, 5, 6, 8, 8, 9, 10, 10, 11, 13, 13, 14, 15, 15, 16],
-                                              [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0])
-        if 140 < self.pwm_value < 200:
-            self.widget_pwm_oscilloscope.clear()
-            self.widget_pwm_oscilloscope.plot([1, 2, 2, 3, 4, 5, 5, 7, 7, 8, 9, 10, 10, 12, 12, 13, 14, 15, 15, 16],
-                                              [0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0])
-        if 200 < self.pwm_value < 256:
-            self.widget_pwm_oscilloscope.clear()
-            self.widget_pwm_oscilloscope.plot(
-                [0.1, 0.5, 0.5, 2, 3, 4, 5, 5, 5.5, 5.5, 7,  8,  9, 10, 10, 10.5, 10.5, 12, 13, 15, 15, 16],
-                [0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0])
+        self.create_pwm_diagram()
+        self.widget_pwm_oscilloscope.clear()
+        self.widget_pwm_oscilloscope.plot(self.pwm_times_list, self.pwm_levels_list)
+
+    def create_pwm_diagram(self):
+        self.pwm_times_list = []
+        self.pwm_levels_list = []
+        for count in range(1280):
+            self.pwm_times_list.append(count)
+        for _ in range(self.pwm_value):
+            self.pwm_levels_list.append(1)
+        for _ in range(256 - self.pwm_value):
+            self.pwm_levels_list.append(0)
+
+        self.pwm_times_list.append(1280)
+        self.pwm_levels_list *= 5
+        self.pwm_levels_list.append(1)
 
     def lcd1602_cycle(self):
-        message_list = []
+        message_list = ['Duit 2023']
         if self.checkBox_i2c1602_show_clock.isChecked():
             time = str(datetime.now())
             message_list.append("Date " + time[0:11] + "Time  " + time[11:16])
         if self.checkBox_i2c1602_show_log.isChecked():
-            message_list.append(self.current_log)
+            message_list.append("log " + self.current_log)
         if self.checkBox_i2c1602_show_moisure.isChecked():
             message_list.append("Moisture sensor level " + str(self.moisture_value) + "%")
         if self.checkBox_i2c1602_show_pwm.isChecked():
@@ -1039,16 +1047,44 @@ class Ui_MainWindow(object):
             message_list.append("Timer             " + str(self.current_timer) + "s")
         if self.checkBox_i2c1602_show_weather.isChecked():
             message_list.append("The weather is " + self.weather_status)
+        print(message_list)
         if len(message_list) > self.lcd1602_cycle_count:
             self.output_data_dict['1'] = message_list[self.lcd1602_cycle_count][0:15]
             self.output_data_dict['2'] = message_list[self.lcd1602_cycle_count][15:]
             self.ready_to_write = True
         else:
             self.lcd1602_cycle_count = -1
-        if self.lcd1602_cycle_count > 6:
-            self.lcd1602_cycle_count = -1
         self.lcd1602_cycle_count += 1
-        print(self.output_data_dict)
+
+    def send_text_to_lcd1602(self):
+        if self.textEdit_i2c1602_send_text.toPlainText():
+            message = self.textEdit_i2c1602_send_text.toPlainText()
+            self.output_data_dict['1'] = message[0:16]
+            if len(message) > 15:
+                self.output_data_dict['2'] = message[16:]
+            self.ready_to_write = True
+
+    def relay_on(self):
+        self.output_data_dict['5'] = '0'
+        self.ready_to_write = True
+
+    def relay_off(self):
+        self.output_data_dict['5'] = '1'
+        self.ready_to_write = True
+
+    def enable_pump(self):
+        self.add_to_log('pump relay connected')
+        self.checkBox_rain_sens_connect_to_relay.setChecked(False)
+
+    def enable_rain_buzzer(self):
+        self.add_to_log('buzzer relay connected')
+        self.checkBox_connect_moisture_to_relay.setChecked(False)
+
+    def add_to_log(self, item):                                                                  # функція запису у лог
+        if self.logs_count > 0:                                                    # вирізаємо логи при старті програми
+            self.current_log = str(datetime.now())[11: 19] + ' - ' + item
+            self.listWidget.insertItem(0, self.current_log)
+        self.logs_count += 1
 
 
 if __name__ == "__main__":

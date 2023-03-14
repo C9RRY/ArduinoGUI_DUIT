@@ -16,5 +16,6 @@ class MyTimerThread(QtCore.QThread):
                 if self.mainwindow.radioButton_symb_disp_show_timer.isChecked():
                     self.mainwindow.display_4x7digit()
                 self.mainwindow.horizontalSlider_relay_timer_value.setValue(self.mainwindow.current_timer)
-            elif self.mainwindow.current_timer < 0:
-                self.mainwindow.add_to_log('таймер час вичерпано')
+        if self.mainwindow.current_timer == 0:
+            self.mainwindow.add_to_log('time is up')
+            self.mainwindow.relay_off()

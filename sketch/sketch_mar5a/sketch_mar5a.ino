@@ -8,7 +8,6 @@
 #define REL 3
 #define DISP_CLK 4
 #define DISP_DIO 5
-#define POT 0
 #define MOSFET 9
 #define ENC_CLK 17
 #define ENC_DT 16
@@ -34,7 +33,8 @@ void setup() {
   tm_display.setBrightness(0x0f);
   matrix.begin(MATRIX_DIN, MATRIX_CLK, MATRIX_CS, 1); // DIN, CLK, CS, кількість матриць 8x8
   matrix.rotar(false);
-  matrix.setIntensidad(3); // яскравість (0 - 15)  
+  matrix.setIntensidad(3); // яскравість (0 - 15)
+  digitalWrite(REL, 1);
 }
  
 
@@ -44,12 +44,14 @@ void loop() {
 
   // енкодер
   enc.tick(); 
-  if (enc.isTurn()) {
-    Serial.println(1);
-    Serial.println(':');    
-    if (enc.isRight()) Serial.println(2);
-    if (enc.isLeft()) Serial.println(-2);
-  }  
+  if (enc.isTurn()) { 
+    if (enc.isRight()) Serial.print("1:2,");
+    if (enc.isLeft()) Serial.print("1:-2,");
+    if (enc.isRightH()) Serial.print("1:10,");
+    if (enc.isLeftH()) Serial.print("1:-10,");
+  }
+  if (enc.isClick()) Serial.print("1:99,");
+  if (enc.isHolded()) Serial.print("1:00,");   
 }
 
 
@@ -104,7 +106,7 @@ void write_port() {
   
   // швидке надсилання даних
   static uint32_t tmr2 = 0;
-  if (millis() - tmr2 > 50) {
+  if (millis() - tmr2 > 100) {
     tmr2 = millis();
     Serial.print(3);
     Serial.print(':');
