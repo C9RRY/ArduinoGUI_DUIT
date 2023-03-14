@@ -27,14 +27,17 @@ class Ui_MainWindow(object):
         self.port_wrong_read_count = 0
         self.input_data = ''
         self.input_data_dict = {"1": "0", "2": "0", "3": "0"}
-        self.output_data_dict = {"1": "0", "2": "0", "3": "0", "4": "0", "5": "0", "6": "0"}
-        self.old_output_data_dict = {}
+        self.output_data_dict = {"1": "Duit the best!", "2": "0", "3": "0", "4": "0", "5": "0", "6": "0"}
+        self.old_output_data_dict = {"1": "0", "2": "0", "3": "0", "4": "0", "5": "0", "6": "0"}
         self.moisture_value = 100
         self.rain_detector_value = 100
         self.relay_is_active = False
         self.ready_to_write = False
         self.pwm_value = 0
         self.current_path = Path(__file__).parent
+        self.current_log = ''
+        self.weather_status = "Sunny"
+        self.lcd1602_cycle_count = 0
 
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -752,6 +755,10 @@ class Ui_MainWindow(object):
         self.update_clock_timer = QTimer()
         self.update_clock_timer.timeout.connect(self.clock_update)
         self.update_clock_timer.start(60000)
+        self.update_lcd1602_timer = QTimer()
+        self.update_lcd1602_timer.timeout.connect(self.lcd1602_cycle)
+        self.update_lcd1602_timer.start(3000)
+
         self.timer_thread = MyTimerThread(mainwindow=self)
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -802,9 +809,8 @@ class Ui_MainWindow(object):
         if self.port_is_connect:                                                       # перевіряємо чи вже не відкрито
             return                                                                             # зачиняємо
         self.serial.setPortName(self.comboBox_COM_ports.currentText())           # вибираєм поточний запис у комбобоксі
-        self.serial.open(QIODevice.ReadWrite)
-        time.sleep(3)                                                                 # час на коректне відкриття порта
-        self.add_to_log(f"з'єднано {self.comboBox_COM_ports.currentText()}")                              # пишем у лог
+        self.serial.open(QIODevice.ReadWrite)                                                               # час на коректне відкриття порта
+        self.add_to_log(f"{self.comboBox_COM_ports.currentText()} connected")                              # пишем у лог
         self.label_com_port_number.setText(self.comboBox_COM_ports.currentText())
         self.port_is_connect = True
         self.serial.readyRead.connect(self.read_port)                   # сигнал приєднання при наявності вхідних даних
@@ -813,7 +819,7 @@ class Ui_MainWindow(object):
         try:
             self.input_data = str(self.serial.readLine(), 'utf-8').strip()                                 # форматуємо
         except Exception as ex:
-            self.add_to_log('помилка в read_port() ' + str(ex))
+            self.add_to_log('Exception ' + str(ex))
             self.close_port()
 
         if self.input_data:
@@ -826,7 +832,7 @@ class Ui_MainWindow(object):
                         input_data_dict[data[0]] = data[1]
             if input_data_dict['1'] != self.input_data_dict['1']:
                 self.input_data_dict['1'] = input_data_dict['1']
-                pass
+                self.arduino_encoder()
             if input_data_dict['2'] != self.input_data_dict['2']:
                 self.input_data_dict['2'] = input_data_dict['2']
                 self.moisture_sensor()
@@ -837,6 +843,32 @@ class Ui_MainWindow(object):
         if self.ready_to_write:
             self.send_to_port()
             self.ready_to_write = False
+
+    def arduino_encoder(self):
+        if self.input_data_dict["1"] == "2":
+            if self.radioButton_connect_encoder_to_timer.isChecked():
+                self.update_timer_value(self.current_timer + 2)
+            elif self.radioButton_connect_encoder_to_pwm.isChecked():
+                self.horizontalSlider_pwm_duty_cycle.setValue(self.pwm_value + 1)
+        elif self.input_data_dict["1"] == "10":
+            if self.radioButton_connect_encoder_to_timer.isChecked():
+                self.update_timer_value(self.current_timer + 10)
+            elif self.radioButton_connect_encoder_to_pwm.isChecked():
+                self.horizontalSlider_pwm_duty_cycle.setValue(self.pwm_value + 5)
+        elif self.input_data_dict["1"] == "-2":
+            if self.radioButton_connect_encoder_to_timer.isChecked():
+                self.update_timer_value(self.current_timer - 2)
+            elif self.radioButton_connect_encoder_to_pwm.isChecked():
+                self.horizontalSlider_pwm_duty_cycle.setValue(self.pwm_value - 1)
+        elif self.input_data_dict["1"] == "-10":
+            if self.radioButton_connect_encoder_to_timer.isChecked():
+                self.update_timer_value(self.current_timer - 10)
+            elif self.radioButton_connect_encoder_to_pwm.isChecked():
+                self.horizontalSlider_pwm_duty_cycle.setValue(self.pwm_value - 5)
+        elif self.input_data_dict["1"] == "99":
+            if self.radioButton_connect_encoder_to_timer.isChecked():
+                self.start_timer()
+        self.input_data_dict["1"] = "0"
 
     def update_timer_value(self, value):                                               # функція зміни значення таймера
         if value >= 0:
@@ -850,20 +882,23 @@ class Ui_MainWindow(object):
     def send_to_port(self):
         send_string = ''
         for key, value in self.output_data_dict.items():
-            send_string = send_string + str(key) + ':' + str(value) + ','
+            if self.output_data_dict[key] != self.old_output_data_dict[key]:
+                send_string = send_string + str(key) + ':' + str(value) + ','
+        print(send_string)
         self.serial.write(send_string.encode())
+        self.old_output_data_dict = self.output_data_dict.copy()
 
     def close_port(self):
         self.serial.close()
         if self.port_is_connect:
-            self.add_to_log("роз'єднано")                                                                 # пишем у лог
+            self.add_to_log("disconnected")                                                                 # пишем у лог
             self.port_is_connect = False
             self.label_com_port_number.setText('')
 
     def get_port_info(self):                                                  # запускається у update_parameters_thread
         self.updated_ports = [port.portName() for port in QSerialPortInfo().availablePorts()]   # генеруємо list портів
         if self.ports != self.updated_ports:                                                  # виявляємо зміни в ports
-            self.add_to_log('зміна в устаткуванні')                                                       # пишем у лог
+            self.add_to_log('Device list changed')                                                       # пишем у лог
             self.comboBox_COM_ports.clear()
             self.ports = self.updated_ports
             self.first_port = self.ports[0]
@@ -872,7 +907,8 @@ class Ui_MainWindow(object):
 
     def add_to_log(self, item):                                                                  # функція запису у лог
         if self.logs_count > 0:                                                    # вирізаємо логи при старті програми
-            self.listWidget.insertItem(0, str(datetime.now())[11: 19] + ' - ' + item)
+            self.current_log = str(datetime.now())[11: 19] + ' - ' + item
+            self.listWidget.insertItem(0, self.current_log)
         self.logs_count += 1
 
     def display_4x7digit(self):
@@ -899,21 +935,21 @@ class Ui_MainWindow(object):
     def start_timer(self):
         if self.timer_is_running:                                                          # робимо кнопку бістабільною
             self.stop_timer()                                                # повторний виклик "старт" працює як пауза
-            self.add_to_log(f'таймер пауза на {self.current_timer}сек.')
+            self.add_to_log(f' {self.current_timer}s')
         else:
             self.timer_is_running = True                                       # якщо таймер вимкнуто просто запускаємо
             self.timer_thread.start()
-            self.add_to_log(f'таймер старт {self.current_timer}сек.')
+            self.add_to_log(f'Timer "Start"  {self.current_timer}s')
 
     def stop_timer(self):
         if not self.timer_is_running:                                                            # якщо таймер вимкнуто
             self.current_timer = 0                                                 # виклик спрацює на скидання таймера
             self.lcdNumber_relay_timer.display(self.current_timer)
-            self.add_to_log('таймер скинуто')
+            self.add_to_log('Timer cleared')
             self.horizontalSlider_relay_timer_value.setValue(0)
         else:
             self.timer_is_running = False                                                      # зупиняємо тред таймера
-            self.add_to_log('таймер стоп')
+            self.add_to_log('Timer "Stop"')
 
     def dial_move(self):                                                             # робота дайлера в режимі енкодера
         value = self.dial_encoder.value()
@@ -947,10 +983,13 @@ class Ui_MainWindow(object):
         self.progressBar_rain_sens_level.setValue(self.rain_detector_value)
         if self.rain_detector_value >= 60:
             self.label_rain_sens_status_icon.setPixmap(QtGui.QPixmap(f"{self.current_path}/rain.png"))
+            self.weather_status = "rainy"
         if self.rain_detector_value <= 20:
             self.label_rain_sens_status_icon.setPixmap(QtGui.QPixmap(f"{self.current_path}/sun.png"))
+            self.weather_status = "sunny"
         if self.rain_detector_value > 20 and self.rain_detector_value < 60:
             self.label_rain_sens_status_icon.setPixmap(QtGui.QPixmap(f"{self.current_path}/cloud.png"))
+            self.weather_status = "cloudy"
 
     def matrix_8x8(self):
         self.output_data_dict['4'] = self.textEdit_matrix8x8.toPlainText()
@@ -984,6 +1023,32 @@ class Ui_MainWindow(object):
             self.widget_pwm_oscilloscope.plot(
                 [0.1, 0.5, 0.5, 2, 3, 4, 5, 5, 5.5, 5.5, 7,  8,  9, 10, 10, 10.5, 10.5, 12, 13, 15, 15, 16],
                 [0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0])
+
+    def lcd1602_cycle(self):
+        message_list = []
+        if self.checkBox_i2c1602_show_clock.isChecked():
+            time = str(datetime.now())
+            message_list.append("Date " + time[0:11] + "Time  " + time[11:16])
+        if self.checkBox_i2c1602_show_log.isChecked():
+            message_list.append(self.current_log)
+        if self.checkBox_i2c1602_show_moisure.isChecked():
+            message_list.append("Moisture sensor level " + str(self.moisture_value) + "%")
+        if self.checkBox_i2c1602_show_pwm.isChecked():
+            message_list.append("Pwm duty cycle        " + str(int(self.pwm_value / 256 * 100 // 1)) + "%")
+        if self.checkBox_i2c1602_show_timer.isChecked():
+            message_list.append("Timer             " + str(self.current_timer) + "s")
+        if self.checkBox_i2c1602_show_weather.isChecked():
+            message_list.append("The weather is " + self.weather_status)
+        if len(message_list) > self.lcd1602_cycle_count:
+            self.output_data_dict['1'] = message_list[self.lcd1602_cycle_count][0:15]
+            self.output_data_dict['2'] = message_list[self.lcd1602_cycle_count][15:]
+            self.ready_to_write = True
+        else:
+            self.lcd1602_cycle_count = -1
+        if self.lcd1602_cycle_count > 6:
+            self.lcd1602_cycle_count = -1
+        self.lcd1602_cycle_count += 1
+        print(self.output_data_dict)
 
 
 if __name__ == "__main__":
