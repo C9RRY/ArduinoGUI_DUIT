@@ -1047,7 +1047,6 @@ class Ui_MainWindow(object):
             message_list.append("Timer             " + str(self.current_timer) + "s")
         if self.checkBox_i2c1602_show_weather.isChecked():
             message_list.append("The weather is " + self.weather_status)
-        print(message_list)
         if len(message_list) > self.lcd1602_cycle_count:
             self.output_data_dict['1'] = message_list[self.lcd1602_cycle_count][0:15]
             self.output_data_dict['2'] = message_list[self.lcd1602_cycle_count][15:]
